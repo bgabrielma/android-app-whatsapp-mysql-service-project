@@ -1,9 +1,13 @@
 package work.bgabrielma.com.tasks;
 
 import android.os.AsyncTask;
+import work.bgabrielma.com.database.DatabaseBuilder;
 import work.bgabrielma.com.interfaces.ITaskDatabase;
 
 import java.sql.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map.Entry;
 
 public class TaskDatabase extends AsyncTask<String, Integer, String> {
 
@@ -27,6 +31,11 @@ public class TaskDatabase extends AsyncTask<String, Integer, String> {
 
     //Prepare SQL
     protected String sql;
+    protected boolean error = false;
+
+    //Result SQL Object
+    protected ArrayList<HashMap<String,Object>> rows =
+            new ArrayList<>();
 
     public TaskDatabase(String DB_URL, String USER, String PASS) {
         this.DB_URL = DB_URL;
@@ -38,6 +47,11 @@ public class TaskDatabase extends AsyncTask<String, Integer, String> {
     protected void onPreExecute() {
         try {
             Class.forName(JBDC_DRIVER);
+
+            // Reset params
+            error = false;
+            rows.clear();
+
         } catch (ClassNotFoundException e) {
             e.printStackTrace();
         }
@@ -77,11 +91,11 @@ public class TaskDatabase extends AsyncTask<String, Integer, String> {
      */
 
     // Querie construct phase
-    public void prepare(String sql) {
-        if(sql.isEmpty())
+    public void prepare(DatabaseBuilder sql) {
+        if(sql.build().isEmpty())
             throw new IllegalArgumentException("Please provide a valid SQL querie");
 
-        this.sql = sql;
+        this.sql = sql.build();
     }
 
     private void executeStatement() {
@@ -92,17 +106,51 @@ public class TaskDatabase extends AsyncTask<String, Integer, String> {
             stmt = conn.createStatement();
             resultSet = stmt.executeQuery(this.sql);
 
+            ResultSetMetaData metaData = resultSet.getMetaData();
+
             /**
              *
              * Do stuff with data received
              *
              */
+            if(resultSet != null) {
+                int colCount = metaData.getColumnCount();
+
+                ArrayList<String> cols = new ArrayList<>();
+
+                // Get and register into cols's list the name of column
+                for (int index = 1; index <= colCount; index++)
+                    cols.add(metaData.getColumnName(index));
+
+                // For each row
+                while (resultSet.next()) {
+
+                    // For each column, obtain its respective value
+                    HashMap<String,Object> row = new HashMap<>();
+
+                    for (String colName : cols) {
+                        Object val = resultSet.getObject(colName);
+                        row.put(colName,val);
+                    }
+                    // Add rows
+                    rows.add(row);
+                }
+            }
+
+            for(int i = 0; i < rows.size() ; i++) {
+                System.out.println("---------------------------");
+                System.out.println("ROW " + (i +1) + "\n");
+                for(Entry<String, Object> row : rows.get(i).entrySet()) {
+                    System.out.println(row.getKey() + " - " + (row.getValue().getClass().getName()) + " --- " + row.getValue());
+                }
+            }
 
             // Close connection
             conn.close();
 
         } catch (SQLException e) {
             e.printStackTrace();
+            this.error = true;
         }
     }
 

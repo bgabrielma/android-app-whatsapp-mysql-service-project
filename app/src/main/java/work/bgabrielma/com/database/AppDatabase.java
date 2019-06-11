@@ -17,6 +17,9 @@ public class AppDatabase implements ITaskDatabase {
     // Task Database
     TaskDatabase taskDatabase = new TaskDatabase(DB_URL, USER, PASS);
 
+    // DatabaseBuilder
+    DatabaseBuilder builder = new DatabaseBuilder();
+
     public AppDatabase() {
 
         // Register events
@@ -26,12 +29,14 @@ public class AppDatabase implements ITaskDatabase {
     public void createConnection() {
 
         // Configure queries
-        taskDatabase.prepare("SELECT name from users");
+
+        /* builder.select("name", "id").from("users").orderByDesc("id").build() */
+        taskDatabase.prepare(builder.rawMode("SELECT * FROM users;"));
         taskDatabase.execute();
     }
 
     @Override
     public void OnFinishTaskDatabaseHandler(ResultSet resultSet) {
-        // do stuff
+        // do stuff after Database Task being complete
     }
 }
